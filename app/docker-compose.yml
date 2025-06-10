@@ -11,6 +11,8 @@ services:
       - .env
     depends_on:
       - db
+    restart: always
+
   db:
     image: postgres:latest
     restart: always
@@ -24,6 +26,21 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    command: npm run dev -- --host 
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - web
+
 volumes:
   db_data:
     driver: local
+

@@ -1,104 +1,144 @@
-DROP TABLE IF EXISTS medical_records, prescriptions, appointments, patients, doctors, users;
+DROP TABLE IF EXISTS kartoteki_medyczne, recepty, wizyty, pacjenci, lekarze, użytkownicy, terminy_wizyt, dokumnetacja_medyczna CASCADE;
 
-CREATE TABLE users (
+CREATE TABLE użytkownicy (
     pesel VARCHAR(11) PRIMARY KEY,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    birth_date DATE NOT NULL,
-    address VARCHAR(100), 
-    gender CHAR(1) CHECK (gender IN ('M', 'F')),
-    phone_number VARCHAR(15)
+    imię VARCHAR(50) NOT NULL,
+    nazwisko VARCHAR(50) NOT NULL,
+    adres VARCHAR(100), 
+    płeć CHAR(1) CHECK (płeć IN ('M', 'K')),
+    numer_telefonu VARCHAR(15),
+    hasło VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE doctors (
-    doctor_pesel VARCHAR(11) PRIMARY KEY REFERENCES users(pesel) ON DELETE CASCADE,
-    specialization VARCHAR(50) NOT NULL,
-    title VARCHAR(50) NOT NULL
+CREATE TABLE lekarze (
+    pesel_lekarza VARCHAR(11) PRIMARY KEY REFERENCES użytkownicy(pesel) ON DELETE CASCADE,
+    specjalizacja VARCHAR(50) NOT NULL,
+    tytuł VARCHAR(50) NOT NULL,
+    numer_gabinetu VARCHAR(10) NOT NULL
 );
 
-CREATE TABLE patients (
-    patient_pesel VARCHAR(11) PRIMARY KEY REFERENCES users(pesel) ON DELETE CASCADE,
-    allergies VARCHAR(100),
-    chronic_conditions VARCHAR(100)
+CREATE TABLE pacjenci (
+    pesel_pacjenta VARCHAR(11) PRIMARY KEY REFERENCES użytkownicy(pesel) ON DELETE CASCADE,
+    telefon_pełnomocnika INT DEFAULT 0
 );
 
-CREATE TABLE appointments (
-    appointment_id SERIAL PRIMARY KEY,
-    date_time TIMESTAMP NOT NULL,
-    doctor_pesel VARCHAR(11) REFERENCES doctors(doctor_pesel),
-    patient_pesel VARCHAR(11) REFERENCES patients(patient_pesel),
-    status VARCHAR(20) CHECK (status IN ('scheduled', 'completed', 'canceled')),
-    notes TEXT,
-    room_number VARCHAR(10),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE dokumnetacja_medyczna (
+    id_dokumentacji SERIAL PRIMARY KEY,
+    pesel_pacjenta VARCHAR(11) REFERENCES pacjenci(pesel_pacjenta) ON DELETE CASCADE,
+    alergie TEXT,
+    choroby_przewlekłe TEXT,
+    operacje TEXT,
+    grupa_krwi VARCHAR(3)
 );
 
-CREATE TABLE prescriptions (
-    prescription_id SERIAL PRIMARY KEY,
-    appointment_id INT REFERENCES appointments(appointment_id) ON DELETE CASCADE,
-    medication VARCHAR(100) NOT NULL,
-    dosage VARCHAR(50) NOT NULL,
-    instructions TEXT,
-    issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+CREATE TABLE wizyty (
+    id_wizyty SERIAL PRIMARY KEY,
+    data DATE NOT NULL, 
+    czas TIME NOT NULL,
+    pesel_lekarza VARCHAR(11) REFERENCES lekarze(pesel_lekarza),
+    pesel_pacjenta VARCHAR(11) REFERENCES pacjenci(pesel_pacjenta),
+    rozpoznanie TEXT,
+    notatki TEXT,
+    czy_zrealizowana BOOLEAN NOT NULL DEFAULT FALSE,
+    zalecenia TEXT
 );
 
-CREATE TABLE medical_records (
-    record_id SERIAL PRIMARY KEY,
-    patient_pesel VARCHAR(11) REFERENCES patients(patient_pesel) ON DELETE CASCADE,
-    doctor_pesel VARCHAR(11) REFERENCES doctors(doctor_pesel),
-    diagnosis TEXT,
-    treatment TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE recepty (
+    id_recepty SERIAL PRIMARY KEY,
+    id_wizyty INT REFERENCES wizyty(id_wizyty) ON DELETE CASCADE,
+    opis_leku VARCHAR(100) NOT NULL
 );
 
--- Sample data
-INSERT INTO users (pesel, first_name, last_name, birth_date, address, gender, phone_number) VALUES
-('12345678901', 'John', 'Doe', '1980-01-01', '123 Main St, City, Country', 'M', '123-456-789'),
-('23456789012', 'Jane', 'Smith', '1990-02-02', '456 Elm St, City, Country', 'F', '234-567-890'),
-('34567890123', 'Alice', 'Johnson', '1985-03-03', '789 Oak St, City, Country', 'F', '345-678-901'),
-('45678901234', 'Bob', 'Brown', '1975-04-04', '101 Pine St, City, Country', 'M', '456-789-012'),
-('56789012345', 'Charlie', 'Davis', '2000-05-05', '202 Maple St, City, Country', 'M', '567-890-123'),
-('32121212324', 'Eve', 'Wilson', '1988-06-06', '303 Cedar St, City, Country', 'F', '678-901-234'),
-('32121212325', 'Frank', 'Miller', '1987-07-07', '404 Birch St, City, Country', 'M', '789-012-345'),
-('32121212326', 'Grace', 'Lee', '1991-08-08', '505 Spruce St, City, Country', 'F', '890-123-456'),
-('32121212327', 'Hank', 'Kim', '1982-09-09', '606 Fir St, City, Country', 'M', '901-234-567'),
-('32121212328', 'Ivy', 'Park', '1993-10-10', '707 Ash St, City, Country', 'F', '012-345-678');
+CREATE TABLE terminy_wizyt (
+    pesel_lekarza VARCHAR(11) REFERENCES lekarze(pesel_lekarza) ON DELETE CASCADE,
+    data_dostępności DATE NOT NULL,
+    godzina_rozpoczęcia TIME NOT NULL,
+    czy_dostępny BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (pesel_lekarza, data_dostępności, godzina_rozpoczęcia)
+);
 
-INSERT INTO doctors (doctor_pesel, specialization, title) VALUES
-('12345678901', 'Cardiology', 'Dr.'),
-('23456789012', 'Dermatology', 'Dr.'),
-('34567890123', 'Pediatrics', 'Dr.'),
-('45678901234', 'Neurology', 'Dr.'),
-('56789012345', 'Orthopedics', 'Dr.'),
-('32121212324', 'General Practice', 'Dr.'),
-('32121212325', 'Endocrinology', 'Dr.'),
-('32121212326', 'Gastroenterology', 'Dr.'),
-('32121212327', 'Psychiatry', 'Dr.'),
-('32121212328', 'Ophthalmology', 'Dr.');
+-- Przykładowe dane
+INSERT INTO użytkownicy (pesel, imię, nazwisko, adres, płeć, numer_telefonu, hasło) VALUES
+('12345678901', 'Jan', 'Kowalski', 'ul. Główna 123, Miasto, Polska', 'M', '123-456-789', 'haslo_zaszyfrowane_1'),
+('23456789012', 'Anna', 'Nowak', 'ul. Klonowa 456, Miasto, Polska', 'K', '234-567-890', 'haslo_zaszyfrowane_2'),
+('11111111111', 'Piotr', 'Zieliński', 'ul. Lipowa 321, Miasto, Polska', 'M', '111-222-333', 'haslo_zaszyfrowane_1'),
+('34567890123', 'Alicja', 'Wiśniewska', 'ul. Dębowa 789, Miasto, Polska', 'K', '345-678-901', 'haslo_zaszyfrowane_3'),
+('45678901234', 'Robert', 'Wójcik', 'ul. Sosnowa 101, Miasto, Polska', 'M', '456-789-012', 'haslo_zaszyfrowane_4'), 
+('56789012345', 'Karol', 'Krawczyk', 'ul. Klonowa 202, Miasto, Polska', 'M', '567-890-123', 'haslo_zaszyfrowane_5'),
+('32121212324', 'Ewa', 'Wilk', 'ul. Cedrowa 303, Miasto, Polska', 'K', '678-901-234', 'haslo_zaszyfrowane_6'),
+('32121212325', 'Franciszek', 'Milewski', 'ul. Brzozowa 404, Miasto, Polska', 'M', '789-012-345', 'haslo_zaszyfrowane_7'),
+('32121212326', 'Grażyna', 'Lis', 'ul. Świerkowa 505, Miasto, Polska', 'K', '890-123-456', 'haslo_zaszyfrowane_8'),
+('32121212327', 'Henryk', 'Kim', 'ul. Jodłowa 606, Miasto, Polska', 'M', '901-234-567', 'haslo_zaszyfrowane_9'),
+('32121212328', 'Iwona', 'Park', 'ul. Jesionowa 707, Miasto, Polska', 'K', '012-345-678', 'haslo_zaszyfrowane_10');
 
-INSERT INTO patients (patient_pesel, allergies, chronic_conditions) VALUES
-('12345678901', 'Penicillin', 'Asthma'),
-('23456789012', 'None', 'Diabetes'),
-('34567890123', 'Peanuts', 'Hypertension'),
-('45678901234', 'None', 'None'),
-('56789012345', 'Shellfish', 'None'),
-('32121212324', 'None', 'None'),
-('32121212325', 'None', 'None'),
-('32121212326', 'None', 'None'),
-('32121212327', 'None', 'None'),
-('32121212328', 'None', 'None');
+INSERT INTO lekarze (pesel_lekarza, specjalizacja, tytuł, numer_gabinetu) VALUES
+('12345678901', 'Kardiologia', 'Dr', '101'),
+('23456789012', 'Dermatologia', 'Dr', '102'),
+('34567890123', 'Pediatria', 'Dr', '103'),
+('45678901234', 'Neurologia', 'Dr', '104'),
+('56789012345', 'Ortopedia', 'Dr', '105'),
+('32121212324', 'Medycyna rodzinna', 'Dr', '106'),
+('32121212325', 'Endokrynologia', 'Dr', '107'),
+('32121212326', 'Gastroenterologia', 'Dr', '108'),
+('32121212327', 'Psychiatria', 'Dr', '109'),
+('11111111111', 'Chirurgia', 'Dr', '110'),
+('32121212328', 'Okulistyka', 'Dr', '110');
 
-INSERT INTO appointments (date_time, doctor_pesel, patient_pesel, status, notes, room_number) VALUES 
-('2023-10-01 10:00:00', '12345678901', '12345678901', 'scheduled', 'Initial consultation', '101'), 
-('2023-10-02 11:00:00', '23456789012', '23456789012', 'completed', 'Follow-up visit', '102'), 
-('2023-10-03 12:00:00', '34567890123', '34567890123', 'canceled', 'Patient rescheduled', '103'), 
-('2023-10-04 13:00:00', '45678901234', '45678901234', 'scheduled', 'Routine check-up', '104'), 
-('2023-10-05 14:00:00', '56789012345', '56789012345', 'completed', 'Post-surgery follow-up', '105');
+INSERT INTO pacjenci (pesel_pacjenta, telefon_pełnomocnika) VALUES
+('12345678901', 123456789),
+('23456789012', 234567890),
+('34567890123', 345678901),
+('45678901234', 456789012),
+('56789012345', 567890123),
+('32121212324', 678901234),
+('32121212325', 789012345),
+('32121212326', 890123456),
+('32121212327', 901234567),
+('32121212328', 12345678);
 
-INSERT INTO prescriptions (appointment_id, medication, dosage, instructions) VALUES
-(1, 'Aspirin', '100mg', 'Take once daily after meal'),
-(2, 'Ibuprofen', '200mg', 'Take every 6 hours if needed'),
-(3, 'Amoxicillin', '500mg', 'Take 3 times daily for 7 days'),
-(4, 'Lisinopril', '10mg', 'Take once daily'),
-(5, 'Metformin', '500mg', 'Take with breakfast and dinner');
+INSERT INTO wizyty (data, czas, pesel_lekarza, pesel_pacjenta, rozpoznanie, czy_zrealizowana, notatki, zalecenia) VALUES
+('2025-06-10', '09:00:00', '12345678901', '12345678901', 'Ból w klatce piersiowej', TRUE, 'Pacjent zgłosił ból w klatce piersiowej.', 'Zalecane wykonanie EKG i badania krwi.'),
+('2025-06-09', '10:00:00', '11111111111', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-09', '12:00:00', '11111111111', '12345678901', NULL, FALSE, NULL, NULL),
+('2025-06-10', '10:00:00', '11111111111', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-10', '11:00:00', '11111111111', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-10', '12:00:00', '11111111111', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-10', '13:00:00', '11111111111', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-11', '11:00:00', '11111111111', '12345678901', NULL, FALSE, NULL, NULL),
+('2025-06-11', '10:00:00', '23456789012', '23456789012', NULL, FALSE, NULL, NULL),
+('2025-06-11', '11:00:00', '34567890123', '34567890123', 'Przeziębienie', TRUE, 'Pacjent ma objawy przeziębienia.', 'Zalecane picie dużej ilości płynów i odpoczynek.'),
+('2025-06-09', '12:00:00', '45678901234', '45678901234', 'Ból głowy', TRUE, 'Pacjent zgłasza silny ból głowy.', 'Zalecane przyjmowanie leków przeciwbólowych.'),
+('2025-06-11', '13:00:00', '56789012345', '56789012345', 'Ból kolana po urazie sportowym', TRUE, 'Pacjent doznał urazu kolana podczas gry w piłkę nożną.', 'Zalecane unikanie obciążania kolana i stosowanie lodu.');
+
+INSERT INTO dokumnetacja_medyczna (pesel_pacjenta, alergie, choroby_przewlekłe, operacje, grupa_krwi) VALUES
+('12345678901', 'Brak', 'Brak', 'Wycięcie wyrostka robaczkowego', 'O+'),
+('23456789012', 'Orzeszki ziemne', 'Astma', 'Wycięcie migdałków', 'A-'),
+('34567890123', 'Brak', 'Brak', 'Brak', 'B+'),
+('45678901234', 'Roztocza', 'Nadciśnienie', 'Usunięcie pęcherzyka żółciowego', 'AB-'),
+('56789012345', 'Brak', 'Cukrzyca', 'Operacja kolana', 'O-');
+
+INSERT INTO recepty (id_wizyty, opis_leku) VALUES
+(1, 'Paracetamol 500mg - 3 razy dziennie przez 5 dni'),
+(2, 'Hydrokortyzon 1% - stosować na skórę 2 razy dziennie'),
+(3, 'Ibuprofen 400mg - co 8 godzin w razie bólu'),
+(4, 'Sumatriptan 50mg - w razie ataku migreny'),
+(5, 'Naproksen 250mg - 2 razy dziennie przez tydzień');
+
+
+INSERT INTO terminy_wizyt (pesel_lekarza, data_dostępności, godzina_rozpoczęcia, czy_dostępny) VALUES
+('12345678901', '2025-06-10', '09:00:00', TRUE),
+('12345678901', '2025-06-11', '10:00:00', FALSE),
+('23456789012', '2025-06-11', '11:00:00', TRUE),
+('34567890123', '2025-06-09', '12:00:00', TRUE),
+('45678901234', '2025-06-11', '13:00:00', TRUE),
+('11111111111', '2025-06-09', '08:00:00', TRUE),
+('11111111111', '2025-06-09', '09:00:00', TRUE),
+('11111111111', '2025-06-09', '10:00:00', TRUE),
+('11111111111', '2025-06-09', '11:00:00', TRUE),
+('11111111111', '2025-06-10', '08:00:00', TRUE),
+('11111111111', '2025-06-10', '09:00:00', TRUE),
+('11111111111', '2025-06-10', '10:00:00', TRUE),
+('11111111111', '2025-06-10', '11:00:00', TRUE),
+('56789012345', '2025-06-10', '14:00:00', TRUE);
 
